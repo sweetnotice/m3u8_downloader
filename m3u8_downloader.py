@@ -48,16 +48,17 @@ def get_m3u8(workdir):
                 # print(file)
                 m3u8_path.append(file)
     else:
-        file_or_dir = 'file'
-        m3u8_path.append(workdir)
-        m3u8_name.append(workdir.split('\\')[-1])
+        if workdir.find('.m3u8') != -1:
+            file_or_dir = 'file'
+            m3u8_path.append(workdir)
+            m3u8_name.append(workdir.split('\\')[-1])
     if len(m3u8_path) == 0:
         print(f'{workdir}内没有找到m3u8文件')
         m3u8_path = False
     return m3u8_path, m3u8_name, file_or_dir
 
 
-def get_m3u8_link_download(m3u8_path, m3u8_name, workdir):  # 一集
+def get_m3u8_link_download(m3u8_path, m3u8_name, first_download_path):  # 一集
     all_index = 0
     m3u8_links = []
     with open(m3u8_path, 'r') as f:
@@ -72,7 +73,6 @@ def get_m3u8_link_download(m3u8_path, m3u8_name, workdir):  # 一集
         return
     else:
         print(f'\n下载 {m3u8_name} 中。。。。\n', end='')
-        first_download_path = workdir + '\\' + m3u8_name.replace('.m3u8', '')  # workdir\间谍过家家第1集\
         mkdir(first_download_path)
         with ThreadPoolExecutor(16) as f:
             for link, i in zip(m3u8_links, range(len(m3u8_links))):
@@ -82,6 +82,7 @@ def get_m3u8_link_download(m3u8_path, m3u8_name, workdir):  # 一集
         #     mkdir(first_download_path)
         #     m3u8_download(link, first_download_path, i, len(m3u8_links))
         os.system(f"copy /b {first_download_path}\\*.ts {first_download_path}.mp4")  # 合并
+        # os.system('cls')
         shutil.rmtree(first_download_path)
         print("转换为mp4 完成")
 
@@ -119,16 +120,22 @@ def main(workdir, thread):  # m3u8目录类似 D:\桌面\夏日重现    线程�
             workdir = '\\'.join(workdir.split('\\')[:-1])
         with ThreadPoolExecutor(thread) as f:
             for m3u8_path, m3u8_name in zip(m3u8_paths, m3u8_names):
-                f.submit(get_m3u8_link_download, m3u8_path, m3u8_name, workdir)
+                first_download_path = workdir + '\\' + m3u8_name.replace('.m3u8', '')  # workdir\间谍过家家第1集\
+                if first_download_path.find(' ') == -1:
+                    f.submit(get_m3u8_link_download, m3u8_path, m3u8_name, first_download_path)
+                else:
+                    print('\n发现路径内有空格！！！请删除后再运行!')
+                    return
         # for m3u8_path, m3u8_name in zip(m3u8_paths, m3u8_names):
         #     get_m3u8_link_download(m3u8_path, m3u8_name)
         for path in m3u8_paths:  # 删除m3u8文件
             os.remove(path)
+        print('全部操作完成！！！')
 
 
 def user_use():
     while 1:
-        workdir = input('----请输入或拖拽 存有m3u8的文件夹 或 m3u8单文件----\n')
+        workdir = input('\n----请输入或拖拽 存有m3u8的文件夹 或 m3u8单文件----\t\t注意路径不能有空格！！！\n').replace('"', '').replace('"', '')
         thread = set_thread()
         main(workdir, thread)
 
@@ -136,12 +143,12 @@ def user_use():
 if __name__ == '__main__':
     """
     文件路径操作
-    workdir(即存放m3u8的文件夹) = D:/桌面/夏日重现
-    m3u8片段下载 D:/桌面/夏日重现/夏日重现第1集/0001.ts
+    workdir(即存放m3u8的文件夹) = D:\\桌面\\夏日重现
+    m3u8片段下载 D:\\桌面\\夏日重现\\夏日重现第1集\\0001.ts
     
     单文件
-    file = D:/桌面/夏日重现第1集.m3u8
-    workdir = D:/桌面
-    m3u8片段下载 D:/桌面/夏日重现第1集/0001.ts
+    file = D:\\桌面\\夏日重现第1集.m3u8
+    workdir = D:\\桌面
+    m3u8片段下载 D:\\桌面\\夏日重现第1集\\0001.ts
     """
     user_use()
