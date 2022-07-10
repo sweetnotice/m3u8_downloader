@@ -2,6 +2,7 @@ import requests
 from concurrent.futures import ThreadPoolExecutor
 import os
 import shutil
+import winsound
 
 
 # 创建文件夹
@@ -100,12 +101,9 @@ def m3u8_download(url, name, i, all_i):
             with open(file_name, 'wb') as f:
                 f.write(resp)
             i = int(i)
-            if i % 8 == 0:
-                show_i = str(round(((i / all_i) * 100), 2)) + '%'
-                if i == 0:
-                    print(f'{name} 进度为 {i}/{all_i} {show_i}', end='')
-                else:
-                    print(f'\r{name} 进度为 {i}/{all_i} {show_i}', end='', flush=True)
+            if i % 5 == 0:
+                percent_i = str(round(((i / all_i) * 100), 2)) + '%'
+                print(f'{name} 进度为 {i}/{all_i} {percent_i}\r', end='')
             break
         except requests.exceptions.RequestException:
             pass
@@ -131,6 +129,7 @@ def main(workdir, thread):  # m3u8目录类似 D:\桌面\夏日重现    线程�
         for path in m3u8_paths:  # 删除m3u8文件
             os.remove(path)
         print('全部操作完成！！！')
+        winsound.MessageBeep(100)
 
 
 def user_use():
