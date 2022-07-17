@@ -1,8 +1,11 @@
+# coding = gbk
 import requests
 from concurrent.futures import ThreadPoolExecutor
 import os
 import shutil
 import winsound
+
+ffmpeg_state = 2  # ffmpeg 是否可用 1可 0不可 2不确定
 
 
 # 创建文件夹
@@ -59,6 +62,37 @@ def get_m3u8(workdir):
     return m3u8_path, m3u8_name, file_or_dir
 
 
+def run_cmd_Popen_PIPE(cmd_string, file):
+    import subprocess
+    # print('运行cmd指令：{}'.format(cmd_string))
+    print(f'ffmpeg合并 {file} 中。。。')
+    return \
+        subprocess.Popen(cmd_string, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                         encoding='utf-8').communicate()[0]
+
+
+def ffmpeg_run(workdir):
+    global ffmpeg_state
+    if ffmpeg_state != 1:  # 不确定是否可用
+        state = os.system('ffmpeg -version')
+        os.system('cls')
+        if state == 0:
+            ffmpeg_state = 1
+        else:
+            print('此设备未下载ffmpeg或者未放入系统变量，将默认使用二进制合并\n')
+            ffmpeg_state = 0
+    if ffmpeg_state == 1:
+        dirs = os.listdir(workdir)
+        for i in dirs:
+            if i.find('.mp4') != -1:
+                i = i.replace('.mp4', '')
+                mp4_path = os.path.join(workdir, i)
+                cmd = fr'ffmpeg -hide_banner -y -i "{mp4_path}.mp4" -c:v copy -c:a copy "{mp4_path}_new.mp4"'
+                run_cmd_Popen_PIPE(cmd, mp4_path)
+                os.remove(f'{mp4_path}.mp4')
+                os.rename(f'{mp4_path}_new.mp4', f'{mp4_path}.mp4')
+
+
 def get_m3u8_link_download(m3u8_path, m3u8_name, first_download_path):  # 一集
     all_index = 0
     m3u8_links = []
@@ -83,9 +117,10 @@ def get_m3u8_link_download(m3u8_path, m3u8_name, first_download_path):  # 一集
         #     mkdir(first_download_path)
         #     m3u8_download(link, first_download_path, i, len(m3u8_links))
         os.system(f"copy /b {first_download_path}\\*.ts {first_download_path}.mp4")  # 合并
-        # os.system('cls')
+        os.system('cls')
         shutil.rmtree(first_download_path)
-        print("转换为mp4 完成")
+
+        # print("转换为mp4 完成")
 
 
 def m3u8_download(url, name, i, all_i):
@@ -128,6 +163,11 @@ def main(workdir, thread):  # m3u8目录类似 D:\桌面\夏日重现    线程�
         #     get_m3u8_link_download(m3u8_path, m3u8_name)
         for path in m3u8_paths:  # 删除m3u8文件
             os.remove(path)
+        if ffmpeg_state != 0:
+            try:
+                ffmpeg_run(workdir)
+            except UnicodeDecodeError:
+                pass
         print('全部操作完成！！！')
         winsound.MessageBeep(100)
 
