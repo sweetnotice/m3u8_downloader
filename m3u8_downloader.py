@@ -65,7 +65,7 @@ def get_m3u8(workdir):
 def run_cmd_Popen_PIPE(cmd_string, file):
     import subprocess
     # print('运行cmd指令：{}'.format(cmd_string))
-    print(f'ffmpeg合并 {file} 中。。。')
+    print(f'ffmpeg合并 {file} 中。。。\t\t可能会耗时比较长')
     return \
         subprocess.Popen(cmd_string, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                          encoding='utf-8').communicate()[0]
@@ -164,10 +164,7 @@ def main(workdir, thread):  # m3u8目录类似 D:\桌面\夏日重现    线程�
         for path in m3u8_paths:  # 删除m3u8文件
             os.remove(path)
         if ffmpeg_state != 0:
-            try:
-                ffmpeg_run(workdir)
-            except UnicodeDecodeError:
-                pass
+            ffmpeg_run(workdir)
         print('全部操作完成！！！')
         winsound.MessageBeep(100)
 
