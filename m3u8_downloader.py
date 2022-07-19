@@ -71,9 +71,16 @@ def run_cmd_Popen_PIPE(cmd_string, file):
                          encoding='utf-8').communicate()[0]
 
 
+def thread_ffmpeg(mp4_path):
+    cmd = fr'ffmpeg -hide_banner -y -i "{mp4_path}.mp4" -c:v copy -c:a copy "{mp4_path}_new.mp4"'
+    run_cmd_Popen_PIPE(cmd, mp4_path)
+    os.remove(f'{mp4_path}.mp4')
+    os.rename(f'{mp4_path}_new.mp4', f'{mp4_path}.mp4')
+
+
 def ffmpeg_run(workdir):
     global ffmpeg_state
-    if ffmpeg_state != 1:  # 不确定是否可用
+    if ffmpeg_state != 1:  # 不确定是否可用的状态
         state = os.system('ffmpeg -version')
         os.system('cls')
         if state == 0:
@@ -83,14 +90,12 @@ def ffmpeg_run(workdir):
             ffmpeg_state = 0
     if ffmpeg_state == 1:
         dirs = os.listdir(workdir)
-        for i in dirs:
-            if i.find('.mp4') != -1:
-                i = i.replace('.mp4', '')
-                mp4_path = os.path.join(workdir, i)
-                cmd = fr'ffmpeg -hide_banner -y -i "{mp4_path}.mp4" -c:v copy -c:a copy "{mp4_path}_new.mp4"'
-                run_cmd_Popen_PIPE(cmd, mp4_path)
-                os.remove(f'{mp4_path}.mp4')
-                os.rename(f'{mp4_path}_new.mp4', f'{mp4_path}.mp4')
+        with ThreadPoolExecutor(3) as f:
+            for i in dirs:
+                if i.find('.mp4') != -1:
+                    i = i.replace('.mp4', '')
+                    mp4_path = os.path.join(workdir, i)
+                    f.submit(thread_ffmpeg, mp4_path)
 
 
 def get_m3u8_link_download(m3u8_path, m3u8_name, first_download_path):  # 一集
@@ -166,7 +171,6 @@ def main(workdir, thread):  # m3u8目录类似 D:\桌面\夏日重现    线程�
         if ffmpeg_state != 0:
             ffmpeg_run(workdir)
         print('全部操作完成！！！')
-        winsound.MessageBeep(100)
 
 
 def user_use():
@@ -174,6 +178,7 @@ def user_use():
         workdir = input('\n----请输入或拖拽 存有m3u8的文件夹 或 m3u8单文件----\t\t注意路径不能有空格！！！\n').replace('"', '').replace('"', '')
         thread = set_thread()
         main(workdir, thread)
+        winsound.MessageBeep(100)
 
 
 if __name__ == '__main__':
