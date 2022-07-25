@@ -1,4 +1,5 @@
 # coding = gbk
+import contextlib
 import requests
 from concurrent.futures import ThreadPoolExecutor
 import os
@@ -13,14 +14,12 @@ def mkdir(path):
     import os
     path = path.strip()
     path = path.rstrip("\\")
-    isExists = os.path.exists(path)
-    if not isExists:
-        os.makedirs(path)
-        print(path + ' 创建成功')
-        return True
-    else:
+    if isExists := os.path.exists(path):
         # print(' 创建过了')
         return False
+    os.makedirs(path)
+    print(f'\n{path} 创建成功\n')
+    return True
 
 
 def set_thread():
@@ -51,12 +50,11 @@ def get_m3u8(workdir):
                 file = os.path.join(workdir, file)
                 # print(file)
                 m3u8_path.append(file)
-    else:
-        if workdir.find('.m3u8') != -1:
-            file_or_dir = 'file'
-            m3u8_path.append(workdir)
-            m3u8_name.append(workdir.split('\\')[-1])
-    if len(m3u8_path) == 0:
+    elif workdir.find('.m3u8') != -1:
+        file_or_dir = 'file'
+        m3u8_path.append(workdir)
+        m3u8_name.append(workdir.split('\\')[-1])
+    if not m3u8_path:
         print(f'{workdir}内没有找到m3u8文件')
         m3u8_path = False
     return m3u8_path, m3u8_name, file_or_dir
@@ -76,6 +74,12 @@ def thread_ffmpeg(mp4_path):
     run_cmd_Popen_PIPE(cmd, mp4_path)
     os.remove(f'{mp4_path}.mp4')
     os.rename(f'{mp4_path}_new.mp4', f'{mp4_path}.mp4')
+
+
+def cmd_rum(first_download_path):
+    os.system(f"copy /b {first_download_path}\\*.ts {first_download_path}.mp4")  # 合并
+    os.system('cls')
+    shutil.rmtree(first_download_path)
 
 
 def ffmpeg_run(workdir):
@@ -108,7 +112,7 @@ def get_m3u8_link_download(m3u8_path, m3u8_name, first_download_path):  # 一集
             if line.find('#EXT') == -1:
                 m3u8_links.append(line)
                 all_index += 1
-    if len(m3u8_links) == 0:
+    if not m3u8_links:
         print(f'{m3u8_name}文件内未找到链接')
         return
     else:
@@ -121,9 +125,6 @@ def get_m3u8_link_download(m3u8_path, m3u8_name, first_download_path):  # 一集
         #     first_download_path = workdir + '\\' + m3u8_name.replace('.m3u8', '')  # workdir\间谍过家家第1集\
         #     mkdir(first_download_path)
         #     m3u8_download(link, first_download_path, i, len(m3u8_links))
-        os.system(f"copy /b {first_download_path}\\*.ts {first_download_path}.mp4")  # 合并
-        os.system('cls')
-        shutil.rmtree(first_download_path)
 
         # print("转换为mp4 完成")
 
@@ -131,22 +132,20 @@ def get_m3u8_link_download(m3u8_path, m3u8_name, first_download_path):  # 一集
 def m3u8_download(url, name, i, all_i):
     # global count
     while len(str(i)) < 4:
-        i = '0' + str(i)
+        i = f'0{str(i)}'
     file_name = f'{name}\\{i}.ts'  # workdir\间谍过家家第1集\0001.ts
     head = {
         "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.198 Safari/537.36"}
     while 1:
-        try:
+        with contextlib.suppress(requests.exceptions.RequestException):
             resp = requests.get(url, timeout=5, headers=head).content[212:]
             with open(file_name, 'wb') as f:
                 f.write(resp)
             i = int(i)
             if i % 5 == 0:
-                percent_i = str(round(((i / all_i) * 100), 2)) + '%'
+                percent_i = f'{str(round(((i / all_i) * 100), 2))}%'
                 print(f'{name} 进度为 {i}/{all_i} {percent_i}\r', end='')
             break
-        except requests.exceptions.RequestException:
-            pass
 
 
 def main(workdir, thread):  # m3u8目录类似 D:\桌面\夏日重现    线程数
@@ -156,21 +155,25 @@ def main(workdir, thread):  # m3u8目录类似 D:\桌面\夏日重现    线程�
     if m3u8_paths:
         if file_or_dir == 'file':
             workdir = '\\'.join(workdir.split('\\')[:-1])
+        first_download_path_list = []
         with ThreadPoolExecutor(thread) as f:
             for m3u8_path, m3u8_name in zip(m3u8_paths, m3u8_names):
                 first_download_path = workdir + '\\' + m3u8_name.replace('.m3u8', '')  # workdir\间谍过家家第1集\
                 if first_download_path.find(' ') == -1:
                     f.submit(get_m3u8_link_download, m3u8_path, m3u8_name, first_download_path)
+                    first_download_path_list.append(first_download_path)
                 else:
                     print('\n发现路径内有空格！！！请删除后再运行!')
                     return
         # for m3u8_path, m3u8_name in zip(m3u8_paths, m3u8_names):
         #     get_m3u8_link_download(m3u8_path, m3u8_name)
+        for first_download_path in first_download_path_list:  # cmd 合并
+            cmd_rum(first_download_path)
         for path in m3u8_paths:  # 删除m3u8文件
             os.remove(path)
-        if ffmpeg_state != 0:
+        if ffmpeg_state != 0:  # ffmpeg 合并
             ffmpeg_run(workdir)
-        print('全部操作完成！！！')
+        print('操作完成！！！')
 
 
 def user_use():
